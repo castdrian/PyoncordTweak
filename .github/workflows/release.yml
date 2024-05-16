@@ -1,4 +1,4 @@
-name: Release Pyoncord
+name: Release
 
 on:
    workflow_dispatch:
@@ -11,6 +11,7 @@ on:
 
 env: 
   upstream_heads:
+  APP_NAME:
   DISCORD_VERSION:
   DEB_FILE_NAME:
   ROOTLESS_DEB_FILE_NAME:
@@ -94,33 +95,37 @@ jobs:
         run: |
           curl -L -o ipa-icons.zip https://raw.githubusercontent.com/pyoncord/assets/main/ipa-icons.zip
 
-      - name: Extract Package and Version
+      - name: Extract Values
         run: |
+          NAME=$(grep '^Name:' control | cut -d ' ' -f 2)
           PACKAGE=$(grep '^Package:' control | cut -d ' ' -f 2)
           VERSION=$(grep '^Version:' control | cut -d ' ' -f 2)
           DEB_FILE_NAME="${PACKAGE}_${VERSION}_iphoneos-arm.deb"
           echo "DEB_FILE_NAME=$DEB_FILE_NAME" >> $GITHUB_ENV
+          ROOTLESS_DEB_FILE_NAME="${PACKAGE}_${VERSION}_iphoneos-arm64.deb"
+          echo "ROOTLESS_DEB_FILE_NAME=$ROOTLESS_DEB_FILE_NAME" >> $GITHUB_ENV
+          echo "APP_NAME=$NAME" >> $GITHUB_ENV
 
       - name: Inject tweak
         run: |
           mkdir -p ${{ github.workspace }}/build
           git clone https://github.com/Al4ise/Azule.git
           ./Azule/azule -i discord.ipa -o ${{ github.workspace }}/build -f ${{ github.workspace }}/dev.theos.orion14_1.0.1_iphoneos-arm.deb ${{ github.workspace }}/${{ env.DEB_FILE_NAME }}
-          mv "${{ github.workspace }}/build/"*.ipa "${{ github.workspace }}/build/Pyoncord.ipa"
+          mv "${{ github.workspace }}/build/"*.ipa "${{ github.workspace }}/build/${{ env.APP_NAME }}.ipa"
 
       - name: Patch Discord
         working-directory: patcher
         run : |
-          ./patcher -d ${{ github.workspace }}/build/Pyoncord.ipa -i ./ipa-icons.zip
-          mv -f ./Pyoncord.ipa "${{ github.workspace }}/build/Pyoncord.ipa"
+          ./patcher -d ${{ github.workspace }}/build/${{ env.APP_NAME }}.ipa -i ./ipa-icons.zip
+          mv -f ./${{ env.APP_NAME }}.ipa "${{ github.workspace }}/build/${{ env.APP_NAME }}.ipa"
 
-      - name: Upload Pyoncord.ipa as artifact
+      - name: Upload ipa as artifact
         uses: actions/upload-artifact@v4
         with:
             name: ipa
-            path: ${{ github.workspace }}/build/Pyoncord.ipa
+            path: ${{ github.workspace }}/build/${{ env.APP_NAME }}.ipa
 
-  release-pyoncord:
+  release-app:
     runs-on: macos-14
     needs: build-ipa
     permissions:
@@ -135,15 +140,9 @@ jobs:
         with:
           merge-multiple: true
 
-      - name: Extract Package File Names and Discord Version
+      - name: Extract Discord Version
         run: |
-          PACKAGE=$(grep '^Package:' control | cut -d ' ' -f 2)
-          VERSION=$(grep '^Version:' control | cut -d ' ' -f 2)
-          DEB_FILE_NAME="${PACKAGE}_${VERSION}_iphoneos-arm.deb"
-          echo "DEB_FILE_NAME=$DEB_FILE_NAME" >> $GITHUB_ENV
-          ROOTLESS_DEB_FILE_NAME="${PACKAGE}_${VERSION}_iphoneos-arm64.deb"
-          echo "ROOTLESS_DEB_FILE_NAME=$ROOTLESS_DEB_FILE_NAME" >> $GITHUB_ENV
-          unzip -q Pyoncord.ipa
+          unzip -q ${{ env.APP_NAME }}.ipa
           DISCORD_VERSION=$(plutil -p Payload/Discord.app/Info.plist | grep CFBundleShortVersionString | cut -d '"' -f 4)
           echo "DISCORD_VERSION=$DISCORD_VERSION" >> $GITHUB_ENV
 
@@ -154,7 +153,7 @@ jobs:
           files: |
             ${{ env.DEB_FILE_NAME }}
             ${{ env.ROOTLESS_DEB_FILE_NAME }}
-            Pyoncord.ipa
+            ${{ env.APP_NAME }}.ipa
           generate_release_notes: true
           fail_on_unmatched_files: true
           token: ${{ env.GITHUB_TOKEN }}
@@ -176,11 +175,11 @@ jobs:
         
       - name: Update app-repo.json
         run: |
-          unzip -q Pyoncord.ipa
+          unzip -q ${{ env.APP_NAME }}.ipa
           VERSION=$(plutil -p Payload/Discord.app/Info.plist | grep CFBundleShortVersionString | cut -d '"' -f 4)
           DATE=$(date -u +"%Y-%m-%d")
-          IPA_SIZE=$(ls -l Pyoncord.ipa | awk '{print $5}')
-          NEW_ENTRY=$(jq -n --arg version "$VERSION" --arg date "$DATE" --arg size "$IPA_SIZE" --arg downloadURL "https://github.com/pyoncord/PyoncordTweak/releases/download/v$VERSION/Pyoncord.ipa" '{version: $version, date: $date, size: ($size | tonumber), downloadURL: $downloadURL}')
+          IPA_SIZE=$(ls -l ${{ env.APP_NAME }}.ipa | awk '{print $5}')
+          NEW_ENTRY=$(jq -n --arg version "$VERSION" --arg date "$DATE" --arg size "$IPA_SIZE" --arg downloadURL "https://github.com/${{ github.action_repository }}/releases/download/v$VERSION/${{ env.APP_NAME }}.ipa" '{version: $version, date: $date, size: ($size | tonumber), downloadURL: $downloadURL}')
           jq --argjson newEntry "$NEW_ENTRY" '.apps[0].versions |= [$newEntry] + .' app-repo.json > temp.json && mv temp.json app-repo.json
         
       - uses: EndBug/add-and-commit@v9

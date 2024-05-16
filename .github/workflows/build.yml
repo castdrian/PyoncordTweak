@@ -1,4 +1,4 @@
-name: Build Pyoncord
+name: Build
 
 on:
    workflow_dispatch:
@@ -12,6 +12,7 @@ on:
 env: 
   upstream_heads:
   DEB_FILE_NAME:
+  APP_NAME:
 
 jobs:
   build-tweak:
@@ -92,28 +93,30 @@ jobs:
         run: |
           curl -L -o ipa-icons.zip https://raw.githubusercontent.com/pyoncord/assets/main/ipa-icons.zip
 
-      - name: Extract Package and Version
+      - name: Extract Values
         run: |
+          NAME=$(grep '^Name:' control | cut -d ' ' -f 2)
           PACKAGE=$(grep '^Package:' control | cut -d ' ' -f 2)
           VERSION=$(grep '^Version:' control | cut -d ' ' -f 2)
           DEB_FILE_NAME="${PACKAGE}_${VERSION}_iphoneos-arm.deb"
           echo "DEB_FILE_NAME=$DEB_FILE_NAME" >> $GITHUB_ENV
+          echo "APP_NAME=$NAME" >> $GITHUB_ENV
 
       - name: Inject tweak
         run: |
           mkdir -p ${{ github.workspace }}/build
           git clone https://github.com/Al4ise/Azule.git
           ./Azule/azule -i discord.ipa -o ${{ github.workspace }}/build -f ${{ github.workspace }}/dev.theos.orion14_1.0.1_iphoneos-arm.deb ${{ github.workspace }}/${{ env.DEB_FILE_NAME }}
-          mv "${{ github.workspace }}/build/"*.ipa "${{ github.workspace }}/build/Pyoncord.ipa"
+          mv "${{ github.workspace }}/build/"*.ipa "${{ github.workspace }}/build/${{ env.APP_NAME }}.ipa"
 
       - name: Patch Discord
         working-directory: patcher
         run : |
-          ./patcher -d ${{ github.workspace }}/build/Pyoncord.ipa -i ./ipa-icons.zip
-          mv -f ./Pyoncord.ipa "${{ github.workspace }}/build/Pyoncord.ipa"
+          ./patcher -d ${{ github.workspace }}/build/${{ env.APP_NAME }}.ipa -i ./ipa-icons.zip
+          mv -f ./${{ env.APP_NAME }}.ipa "${{ github.workspace }}/build/${{ env.APP_NAME }}.ipa"
   
-      - name: Upload Pyoncord.ipa as artifact
+      - name: Upload ipa as artifact
         uses: actions/upload-artifact@v4
         with:
             name: ipa
-            path: ${{ github.workspace }}/build/Pyoncord.ipa
+            path: ${{ github.workspace }}/build/${{ env.APP_NAME }}.ipa
