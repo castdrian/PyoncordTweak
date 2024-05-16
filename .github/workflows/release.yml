@@ -163,7 +163,7 @@ jobs:
   app-repo:
     continue-on-error: true
     runs-on: macos-14
-    needs: release-pyoncord
+    needs: release-app
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
