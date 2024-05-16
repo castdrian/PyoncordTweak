@@ -113,7 +113,7 @@ jobs:
         working-directory: patcher
         run : |
           ./patcher -d ${{ github.workspace }}/build/${{ env.APP_NAME }}.ipa -i ./ipa-icons.zip
-          mv -f ./${{ env.APP_NAME }}.ipa "${{ github.workspace }}/build/${{ env.APP_NAME }}.ipa"
+          mv -f ./*.ipa "${{ github.workspace }}/build/${{ env.APP_NAME }}.ipa"
   
       - name: Upload ipa as artifact
         uses: actions/upload-artifact@v4
