@@ -30,11 +30,11 @@ static OSStatus SecItemUpdate_replacement(CFDictionaryRef query, CFDictionaryRef
 }
 
 __attribute__((constructor)) static void init() {
+	orion_init();
+
 	rebind_symbols((struct rebinding[3]) {
 			{"SecItemAdd", SecItemAdd_replacement, (void *)&SecItemAdd_orig},
 			{"SecItemCopyMatching", SecItemCopyMatching_replacement, (void *)&SecItemCopyMatching_orig},
 			{"SecItemUpdate", SecItemUpdate_replacement, (void *)&SecItemUpdate_orig}
 		}, 3);
-	
-	orion_init();
 }
