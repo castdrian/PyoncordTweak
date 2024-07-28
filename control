@@ -1,6 +1,6 @@
 Package: io.github.pyoncord.app
 Name: Bunny
-Version: 0.3.1
+Version: 0.3.2
 Architecture: iphoneos-arm
 Description: A mod for Discord's mobile apps.
 Maintainer: Pylix

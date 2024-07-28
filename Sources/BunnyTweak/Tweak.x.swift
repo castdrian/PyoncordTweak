@@ -118,6 +118,7 @@ class LoadHook: ClassHook<RCTCxxBridge> {
       orig.executeApplicationScript(bundle!, url: source, async: async)
     } else {
       os_log("Unable to fetch JS bundle", log: bunnyLog, type: .error)
+	  BunnyTweakC.presentAlert("Network Error", message: "Unable to fetch JS bundle. Please try different networks or a VPN. Do not open a support request.")
     }
 
     os_log("Executing original script", log: bunnyLog, type: .info)
