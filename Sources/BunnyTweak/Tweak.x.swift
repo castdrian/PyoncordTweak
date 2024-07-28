@@ -1,6 +1,7 @@
 import Orion
 import BunnyTweakC
 import os
+import UIKit
 
 let bunnyLog = OSLog(subsystem: Bundle.main.bundleIdentifier!, category: "bunny")
 let source = URL(string: "bunny")!
@@ -117,8 +118,16 @@ class LoadHook: ClassHook<RCTCxxBridge> {
       os_log("Executing JS bundle", log: bunnyLog, type: .info)
       orig.executeApplicationScript(bundle!, url: source, async: async)
     } else {
-      os_log("Unable to fetch JS bundle", log: bunnyLog, type: .error)
-	  BunnyTweakC.presentAlert("Network Error", message: "Unable to fetch JS bundle. Please try different networks or a VPN. Do not open a support request.")
+      	os_log("Unable to fetch JS bundle", log: bunnyLog, type: .error)
+	    let alert = UIAlertController(title: "Network Error", message: "Unable to fetch JS bundle. Please try different networks or a VPN. Do not open a support request.", preferredStyle: .alert)
+		let okAction = UIAlertAction(title: "OK", style: .default) { _ in
+			exit(0)
+		}
+		alert.addAction(okAction)
+		
+		if let viewController = UIApplication.shared.keyWindow?.rootViewController {
+			viewController.present(alert, animated: true, completion: nil)
+		}
     }
 
     os_log("Executing original script", log: bunnyLog, type: .info)
