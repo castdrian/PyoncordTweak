@@ -13,6 +13,12 @@
       "tintColor": "7289da",
       "versions": [
         {
+          "version": "251.0",
+          "date": "2024-10-16",
+          "size": 101383184,
+          "downloadURL": "https://github.com/castdrian/PyoncordTweak/releases/download/v251.0/Bunny.ipa"
+        },
+        {
           "version": "250.0",
           "date": "2024-10-08",
           "size": 102515916,
