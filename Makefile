@@ -9,7 +9,8 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = BunnyTweak
 
-BunnyTweak_FILES = $(shell find Sources/BunnyTweak -name '*.swift') $(shell find Sources/BunnyTweakC -name '*.m' -o -name '*.c' -o -name '*.mm' -o -name '*.cpp')
+BunnyTweak_FILES = $(shell find Sources/BunnyTweak -name '*.swift') $(shell find Sources/BunnyTweakC -name '*.m' -o -name '*.x' -o -name '*.c' -o -name '*.mm' -o -name '*.cpp')
+BunnyTweak_FRAMEWORKS = UIKit Foundation SystemConfiguration
 BunnyTweak_SWIFTFLAGS = -ISources/BunnyTweakC/include
 BunnyTweak_CFLAGS = -fobjc-arc -ISources/BunnyTweakC/include
 
