@@ -1,7 +1,20 @@
 #import "Logger.h"
 #import <Foundation/Foundation.h>
+#import <Security/Security.h>
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
+
+typedef struct __CMSDecoder *CMSDecoderRef;
+extern CFTypeRef SecCMSDecodeGetContent(CFDataRef message);
+extern OSStatus CMSDecoderCreate(CMSDecoderRef *cmsDecoder);
+extern OSStatus CMSDecoderUpdateMessage(CMSDecoderRef cmsDecoder, const void *content,
+                                        size_t contentLength);
+extern OSStatus CMSDecoderFinalizeMessage(CMSDecoderRef cmsDecoder);
+extern OSStatus CMSDecoderCopyContent(CMSDecoderRef cmsDecoder, CFDataRef *content);
+
+@interface LSApplicationWorkspace : NSObject
+- (BOOL)openApplicationWithBundleID:(NSString *)bundleID;
+@end
 
 #define DISCORD_BUNDLE_ID @"com.hammerandchisel.discord"
 #define DISCORD_NAME @"Discord"
@@ -41,11 +54,61 @@ static BOOL isSelfCall(void) {
     return [path hasPrefix:NSBundle.mainBundle.bundlePath];
 }
 
+static NSString *getProvisioningBundleID(void) {
+    NSString *provisionPath = [NSBundle.mainBundle pathForResource:@"embedded"
+                                                            ofType:@"mobileprovision"];
+    if (!provisionPath)
+        return nil;
+
+    NSData *provisionData = [NSData dataWithContentsOfFile:provisionPath];
+    if (!provisionData)
+        return nil;
+
+    CMSDecoderRef decoder = NULL;
+    CMSDecoderCreate(&decoder);
+    CMSDecoderUpdateMessage(decoder, provisionData.bytes, provisionData.length);
+    CMSDecoderFinalizeMessage(decoder);
+
+    CFDataRef dataRef = NULL;
+    CMSDecoderCopyContent(decoder, &dataRef);
+    NSData *data = (__bridge_transfer NSData *)dataRef;
+
+    if (decoder)
+        CFRelease(decoder);
+
+    NSError *error = nil;
+    id plist       = [NSPropertyListSerialization propertyListWithData:data
+                                                         options:0
+                                                          format:NULL
+                                                           error:&error];
+    if (!plist || ![plist isKindOfClass:[NSDictionary class]])
+        return nil;
+
+    NSString *appID = plist[@"Entitlements"][@"application-identifier"];
+    if (!appID)
+        return nil;
+
+    NSArray *components = [appID componentsSeparatedByString:@"."];
+    if (components.count > 1) {
+        return [[components subarrayWithRange:NSMakeRange(1, components.count - 1)]
+            componentsJoinedByString:@"."];
+    }
+
+    return nil;
+}
+
 %group Sideloading
 
 %hook NSBundle
 - (NSString *)bundleIdentifier {
-    return isSelfCall() ? DISCORD_BUNDLE_ID : %orig;
+    if (!isSelfCall())
+        return %orig;
+
+    static NSString *provisionID = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{ provisionID = getProvisioningBundleID(); });
+
+    return provisionID ?: DISCORD_BUNDLE_ID;
 }
 
 - (NSDictionary *)infoDictionary {
@@ -88,11 +151,46 @@ static BOOL isSelfCall(void) {
 }
 %end
 
+%hook UIApplication
+- (BOOL)_canChangeAlternateIconName {
+    return YES;
+}
+
+- (void)setAlternateIconName:(NSString *)iconName
+           completionHandler:(void (^)(NSError *))completion {
+    if (completion)
+        completion(nil);
+    %orig;
+}
 %end
 
-%ctor {
+%hook LSApplicationWorkspace
+- (BOOL)openApplicationWithBundleID:(NSString *)bundleID {
+    if ([bundleID isEqualToString:DISCORD_BUNDLE_ID]) {
+        return [self openApplicationWithBundleID:getProvisioningBundleID()];
+    }
+    return %orig;
+}
+%end
+
+%hook UIDocumentPickerViewController
+- (id)initForOpeningContentTypes:(NSArray *)contentTypes {
+    if (isSelfCall()) {
+        NSBundle *bundle = [NSBundle bundleWithIdentifier:getProvisioningBundleID()];
+        self             = %orig(contentTypes);
+        [self setValue:bundle forKey:@"_clientBundle"];
+        return self;
+    }
+    return %orig;
+}
+%end
+
+%end // End of Sideloading group
+
+    %ctor {
     BOOL isAppStoreApp = [[NSFileManager defaultManager]
         fileExistsAtPath:[[NSBundle mainBundle] appStoreReceiptURL].path];
-    if (!isAppStoreApp)
+    if (!isAppStoreApp) {
         %init(Sideloading);
+    }
 }
