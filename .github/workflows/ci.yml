@@ -1,0 +1,17 @@
+name: Build Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - '**'
+      - '!main'
+
+jobs:
+  build-check:
+    name: Build Check
+    uses: ./.github/workflows/deploy.yml
+    with:
+      caller_workflow: ci
+    secrets: inherit 
