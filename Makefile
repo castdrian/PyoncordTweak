@@ -9,7 +9,7 @@ BUNDLE_NAME = BunnyResources
 
 Bunny_FILES = $(wildcard Sources/*.x Sources/*.m Sources/**/*.x Sources/**/*.m)
 Bunny_CFLAGS = -fobjc-arc -DPACKAGE_VERSION='@"$(THEOS_PACKAGE_BASE_VERSION)"' -I$(THEOS_PROJECT_DIR)/Headers
-Bunny_FRAMEWORKS = Foundation UIKit CoreGraphics CoreText CoreFoundation
+Bunny_FRAMEWORKS = Foundation UIKit CoreGraphics CoreText CoreFoundation AVFoundation
 
 BunnyResources_INSTALL_PATH = "/Library/Application\ Support/"
 BunnyResources_RESOURCE_DIRS = Resources
